@@ -3,6 +3,7 @@ from fastapi import APIRouter ,status, HTTPException
 from db.models.usuario import usuario
 from db.client import db
 from db.schemas.usuario import usuarioSchema , usuariosSchema
+
 router = APIRouter(prefix="/usuario", tags=["usuario"],responses={404: {"message" : "No encontrado"}})
 
 @router.get("",response_model=list[usuario])
