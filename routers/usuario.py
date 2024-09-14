@@ -1,21 +1,37 @@
+from operator import truediv
+from unittest import result
 from bson import ObjectId
-from fastapi import APIRouter ,status, HTTPException
+from fastapi import APIRouter, Depends ,status, HTTPException
 from db.models.usuario import usuario
 from db.client import db
 from db.schemas.usuario import usuarioSchema , usuariosSchema
+from auth.auth import isLogged, isAdmin
 
 router = APIRouter(prefix="/usuario", tags=["usuario"],responses={404: {"message" : "No encontrado"}})
 
-@router.get("",response_model=list[usuario])
-async def findUsuarios():
-    return usuariosSchema(db.usuario.find())
+@router.get("")
+async def findUsuarios(token = Depends(isAdmin)):
+    usuarios = list(db.usuario.find())
+    for usuario in usuarios:
+        tipo_usuario_id = usuario.get("tipo_usuario")
+        tipo_sub_id = usuario.get("tipo_sub")
+        if tipo_usuario_id and tipo_sub_id:
+            tipoUsuario = db.tipoUsuario.find_one({"_id": ObjectId(tipo_usuario_id)}, {"descripcion": 1})
+            tipoSub = db.tipoSub.find_one({"_id": ObjectId(tipo_sub_id)}, {"descripcion": 1})
+            if tipoUsuario and tipoSub:
+                usuario["tipo_sub"] = tipoSub.get("descripcion")
+                usuario["tipo_usuario"] = tipoUsuario.get("descripcion")
+    for usuario in usuarios:
+        usuario["_id"] = str(usuario["_id"])           
+
+    return usuarios
 
 @router.get("/{id}")
-async def searchUsuario(id: str):
+async def searchUsuario(id: str,token = Depends(isAdmin)):
     return searchUsuario("_id" , ObjectId(id))
 
 @router.post("/add", response_model=usuario, status_code=status.HTTP_201_CREATED)
-async def addUser(newUsuario: usuario):
+async def addUser(newUsuario: usuario,token = Depends(isAdmin)):
     
     if type(searchUsuario("email",newUsuario.email)) == usuario : 
        raise HTTPException(
@@ -29,27 +45,34 @@ async def addUser(newUsuario: usuario):
     
     return usuario(**new_Usuario)
 
-@router.put("/update", response_model=usuario)
-async def updateUsuario(updateUsuario: usuario):
+@router.put("/update")
+async def updateUsuario(updateUsuario: usuario,token = Depends(isAdmin)):
     usuario_dict = dict(updateUsuario)
+    print(usuario_dict)
     del usuario_dict["id"]
     
     try:
-        db.usuario.find_one_and_replace({"_id": ObjectId(updateUsuario.id)}, usuario_dict)
+       result=db.usuario.find_one_and_update(
+           {"_id": ObjectId(updateUsuario.id)}, 
+           {"$set": usuario_dict},
+           return_document=True)
+
     except:
         return {"error" : " No se ha actualizado el usuario"}
+    
+    
+    return searchUsuario("_id", ObjectId(updateUsuario.id))
 
-    return searchUsuario("_id" , ObjectId(updateUsuario.id))
 
 @router.delete("/delete/{id}" , status_code=status.HTTP_204_NO_CONTENT)
-async def deleteUser(id: str):
-    found = db.usuarios.find_one_and_delete({"_id" : id})
+async def deleteUser(id: str,token = Depends(isAdmin)):
+    found = db.usuario.find_one_and_delete({"_id" : ObjectId(id)})
     if not found:
         return {"error" : "No se ha eliminado el usuario"}
-
+    
 def searchUsuario(field :str, key):
     try:
-        usuario = db.usuario.find_one({field: key})
-        return usuarioSchema(**usuarioSchema(usuario))
+        usuariof = db.usuario.find_one({field: key})
+        return usuario(**usuarioSchema(usuariof))
     except:
         return { "error" : "No se ha encontrado el usuario"}

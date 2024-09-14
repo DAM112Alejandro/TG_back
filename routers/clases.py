@@ -1,8 +1,9 @@
 from bson import ObjectId
-from fastapi import APIRouter, status , HTTPException
+from fastapi import APIRouter, Depends, status , HTTPException
 from db.client import db
 from db.models.clase import clase
 from db.schemas.clase import clasesSchema, claseSchema
+from auth.auth import isLogged, isAdmin
 
 router = APIRouter(prefix="/clases", tags=["clases"],responses={404: {"message" : "No encontrado"}})
 
@@ -15,7 +16,7 @@ async def searchClase(id: str):
     return searchClase("_id" , ObjectId(id))
 
 @router.post("/add", response_model=clase, status_code=status.HTTP_201_CREATED)
-async def addClase(newClase: clase):
+async def addClase(newClase: clase ,token = Depends(isAdmin)):
     
     if type(searchClase("descripcion",newClase.descripcion)) == clase : 
        raise HTTPException(
@@ -30,7 +31,7 @@ async def addClase(newClase: clase):
     return clase(**new_Clase)
 
 @router.put("/update", response_model=clase)
-async def updateClase(updateClase: clase):
+async def updateClase(updateClase: clase , token = Depends(isAdmin)):
     clase_dict = dict(updateClase)
     del clase_dict["id"]
     
@@ -42,15 +43,15 @@ async def updateClase(updateClase: clase):
     return searchClase("_id" , ObjectId(updateClase.id))
 
 @router.delete("/delete/{id}" , status_code=status.HTTP_204_NO_CONTENT)
-async def deleteClase(id: str):
+async def deleteClase(id: str, token = Depends(isAdmin)):
     found = db.clase.find_one_and_delete({"_id" : id})
     if not found:
         return {"error" : "No se ha eliminado la clase"}
 
 def searchClase(field :str, key):
     try:
-        clase = db.clase.find_one({field: key})
-        return claseSchema(**claseSchema(clase))
+        clasef = db.clase.find_one({field: key})
+        return clase(**claseSchema(clasef))
     except:
         return { "error" : "No se ha encontrado la clase"}
     

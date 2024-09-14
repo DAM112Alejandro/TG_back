@@ -3,8 +3,8 @@ def claseSchema(clase) -> dict:
             "_id": str(clase["_id"]),
             "descripcion": clase["descripcion"],
             "horario" : clase["horario"],
-            "entrenador" : clase["entrenador"],
-            "tipo_clase" : clase["tipo_clase"]
+            "entrenador" : str(clase["entrenador"]),
+            "tipo_clase" : str(clase["tipo_clase"])
         }
         
 def clasesSchema(clases) -> list:

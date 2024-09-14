@@ -3,6 +3,6 @@ from pydantic import BaseModel ,Field
 
 class reserva(BaseModel):
     id : Optional[str] = Field(None , alias = "_id")
-    usuario : str
-    clase : str
-    hora_ins: str
+    usuario : Optional[str] = Field(None , alias = "usuario")
+    clase: str
+    fecha: str
